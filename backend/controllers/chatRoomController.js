@@ -2,22 +2,19 @@
 
 import ChatRoom from "../models/Chatroom.js";
 import mongoose from "mongoose";
-
-// Create new chat room
 export const createChatRoom = async (req, res) => {
-  const { senderId, receiverId } = req.body;
+  const senderId = req.user?.id;  // ✅ From token
+  const { receiverId } = req.body;
 
-  // Log the incoming request body for debugging
-  console.log("Body received:", req.body);
-  console.log("Sender valid:", mongoose.Types.ObjectId.isValid(senderId));
-  console.log("Receiver valid:", mongoose.Types.ObjectId.isValid(receiverId));
+  // Log the incoming data for debugging
+  console.log("Sender from token:", senderId);
+  console.log("Receiver from body:", receiverId);
 
-  // 1. Validate input fields
+  // Validate input
   if (!senderId || !receiverId || senderId === receiverId) {
     return res.status(400).json({ message: "Invalid sender or receiver ID." });
   }
 
-  // 2. Validate ObjectId format
   if (
     !mongoose.Types.ObjectId.isValid(senderId) ||
     !mongoose.Types.ObjectId.isValid(receiverId)
@@ -28,7 +25,6 @@ export const createChatRoom = async (req, res) => {
   }
 
   try {
-    // 3. Check if chat room already exists
     const existingRoom = await ChatRoom.findOne({
       members: { $all: [senderId, receiverId] },
     });
@@ -37,7 +33,6 @@ export const createChatRoom = async (req, res) => {
       return res.status(200).json(existingRoom);
     }
 
-    // 4. Create new chat room
     const newChatRoom = new ChatRoom({
       members: [senderId, receiverId],
     });
@@ -52,6 +47,56 @@ export const createChatRoom = async (req, res) => {
     });
   }
 };
+
+// // Create new chat room
+// export const createChatRoom = async (req, res) => {
+//   const { senderId, receiverId } = req.body;
+
+//   // Log the incoming request body for debugging
+//   console.log("Body received:", req.body);
+//   console.log("Sender valid:", mongoose.Types.ObjectId.isValid(senderId));
+//   console.log("Receiver valid:", mongoose.Types.ObjectId.isValid(receiverId));
+
+//   // 1. Validate input fields
+//   if (!senderId || !receiverId || senderId === receiverId) {
+//     return res.status(400).json({ message: "Invalid sender or receiver ID." });
+//   }
+
+//   // 2. Validate ObjectId format
+//   if (
+//     !mongoose.Types.ObjectId.isValid(senderId) ||
+//     !mongoose.Types.ObjectId.isValid(receiverId)
+//   ) {
+//     return res
+//       .status(400)
+//       .json({ message: "Invalid MongoDB ObjectId format." });
+//   }
+
+//   try {
+//     // 3. Check if chat room already exists
+//     const existingRoom = await ChatRoom.findOne({
+//       members: { $all: [senderId, receiverId] },
+//     });
+
+//     if (existingRoom) {
+//       return res.status(200).json(existingRoom);
+//     }
+
+//     // 4. Create new chat room
+//     const newChatRoom = new ChatRoom({
+//       members: [senderId, receiverId],
+//     });
+
+//     await newChatRoom.save();
+//     res.status(201).json(newChatRoom);
+//   } catch (error) {
+//     console.error("Error creating chat room:", error.message);
+//     res.status(500).json({
+//       message: "Server error while creating chat room",
+//       error: error.message,
+//     });
+//   }
+// };
 
 // Get all chat rooms for a user, sorted by latest message time
 export const getChatRoomOfUser = async (req, res) => {
