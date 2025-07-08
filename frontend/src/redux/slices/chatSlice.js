@@ -25,17 +25,17 @@ export const fetchMessages = createAsyncThunk(
 
 // Send a message to backend
 export const sendMessage = createAsyncThunk(
-  'chat/sendMessage',
-  async ({ chatRoomId, receiverId, message }, thunkAPI) => {
+  "chat/sendMessage",
+  async ({ chatRoomId, receiver, message, sender }, thunkAPI) => {
     try {
-      const res = await axiosInstance.post('/messages', {
+      const res = await axiosInstance.post("/messages", {
         chatRoomId,
-        receiver: receiverId,
-        text: message,  // Ensure the correct structure based on your backend
+        receiver,
+        text: message,
       });
       return res.data;
     } catch (err) {
-      return thunkAPI.rejectWithValue('Failed to send message');
+      return thunkAPI.rejectWithValue("Failed to send message");
     }
   }
 );

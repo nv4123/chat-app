@@ -1,6 +1,6 @@
 // controllers/authController.js
 
-import User from "../models/User.js";
+import userModel from "../models/userModel.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
@@ -21,7 +21,7 @@ export const registerUser = async (req, res) => {
 
   try {
     // Check if user already exists
-    const existingUser = await User.findOne({ phone });
+    const existingUser = await userModel.findOne({ phone });
     if (existingUser) {
       return res
         .status(409)
@@ -60,7 +60,7 @@ export const loginUser = async (req, res) => {
 
   try {
     // Find user by phone
-    const user = await User.findOne({ phone });
+    const user = await userModel.findOne({ phone });
     if (!user) {
       return res.status(404).json({ message: "User not found." });
     }
@@ -73,7 +73,7 @@ export const loginUser = async (req, res) => {
 
     // Create JWT token
     const token = jwt.sign(
-      { id: user._id, phone: user.phone, name: user.name },
+      { id: user._id, phone: userModel.phone, name: user.name },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );

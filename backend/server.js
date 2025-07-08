@@ -3,14 +3,17 @@ import cors from "cors";
 import dotenv from "dotenv";
 import http from "http";
 import { Server } from "socket.io";
-import User from "./models/User.js";
-import ChatMessage from "./models/ChatMessage.js";
+
+import userModel from "./models/userModel.js";
+import ChatMessage from "./models/chatmessageModel.js";
+
 import "./config/db.js";
 import { verifyToken, verifySocketToken } from "./middleware/verifytokens.js";
-import authRoutes from "./routes/auth.js";
-import userRoutes from "./routes/user.js";
-import chatRoomRoutes from "./routes/chatroom.js";
-import chatMessageRoutes from "./routes/chatMessage.js";
+
+import authRoutes from "./routes/authRoute.js";
+import userRoutes from "./routes/userRoute.js";            // Fix file name user(s).js
+import chatRoomRoutes from "./routes/chatroomRoute.js";     // from ChatRoom.js
+import chatMessageRoutes from "./routes/chatmessageRoute.js"; // from chatMessages.js
 
 dotenv.config();
 const app = express();
@@ -22,10 +25,12 @@ const io = new Server(server, {
   },
 });
 
-app.use(cors({
-  origin: "http://localhost:3000",
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: "http://localhost:3000",
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -40,9 +45,9 @@ io.use(verifySocketToken);
 
 global.onlineUsers = new Map();
 
-const getKeyByValue = (map, val) => {
-  for (let [key, value] of map.entries()) {
-    if (value === val) return key;
+const getUserIdBySocketId = (map, socketId) => {
+  for (let [userId, sId] of map.entries()) {
+    if (sId === socketId) return userId;
   }
 };
 
@@ -50,44 +55,53 @@ io.on("connection", (socket) => {
   global.chatSocket = socket;
 
   socket.on("messageDelivered", async ({ messageId }) => {
-    await ChatMessage.findByIdAndUpdate(messageId, { status: "delivered" });
+   // await ChatMessage.findByIdAndUpdate(messageId, { $set : {status: "delivered"} });
   });
 
   socket.on("messageRead", async ({ chatRoomId }) => {
-    await ChatMessage.updateMany(
-      { chatRoomId, status: { $ne: "read" } },
-      { $set: { status: "read" } }
-    );
+   // await ChatMessage.updateMany(
+   //   { chatRoomId, status: { $ne: "read" } },
+   //   { $set: { status: "read" } }
+   // );
   });
 
   socket.on("addUser", (userId) => {
     onlineUsers.set(userId, socket.id);
-    io.emit("getUsers", Array.from(onlineUsers));
+    io.emit("getUsers", Array.from(onlineUsers.keys())); // send array of userIds
   });
 
-  socket.on("sendMessage", async ({ senderId, receiverId, text, chatRoomId }) => {
+  socket.on("sendMessage", async ({ sender, receiver, text, chatRoomId }) => {
+    // Use keys matching backend model exactly
+    console.log({sender,
+      receiver,
+      chatRoomId,
+      text,
+      status: "sent",})
     const newMessage = new ChatMessage({
-      sender: senderId,
-      receiver: receiverId, // Added to match schema
+      sender,
+      receiver,
       chatRoomId,
       text,
       status: "sent",
-      timestamp: new Date(),
     });
 
     await newMessage.save();
 
-    const receiverSocket = onlineUsers.get(receiverId);
-    if (receiverSocket) {
-      socket.to(receiverSocket).emit("getMessage", {
+    const receiverSocketId = onlineUsers.get(receiver);
+    if (receiverSocketId) {
+      socket.to(receiverSocketId).emit("getMessage", {
         ...newMessage._doc,
       });
-      await ChatMessage.findByIdAndUpdate(newMessage._id, { status: "delivered" });
+
+      // Update status to delivered if receiver connected
+     // await ChatMessage.findByIdAndUpdate(newMessage._id, { $set : { status: "delivered"} });
+
       socket.emit("messageStatusUpdate", {
         messageId: newMessage._id,
         status: "delivered",
       });
     } else {
+      // Receiver offline, message 'sent' only
       socket.emit("messageStatusUpdate", {
         messageId: newMessage._id,
         status: "sent",
@@ -96,9 +110,9 @@ io.on("connection", (socket) => {
 
     io.to(chatRoomId).emit("receiveMessage", {
       chatRoomId,
-      sender: senderId,
+      sender,
       text,
-      timestamp: newMessage.timestamp,
+      timestamp: newMessage.createdAt || new Date().toISOString(),
     });
   });
 
@@ -114,46 +128,43 @@ io.on("connection", (socket) => {
       text,
       timestamp: new Date().toISOString(),
     });
-    console.log("📨 Room message sent to room:", chatRoomId);
   });
 
-  socket.on("typing", ({ chatRoomId, senderId, receiverId }) => {
-    const receiverSocket = onlineUsers.get(receiverId);
+  socket.on("typing", ({ chatRoomId, sender, receiver }) => {
+    const receiverSocket = onlineUsers.get(receiver);
     if (receiverSocket) {
       io.to(receiverSocket).emit("typingStatus", {
         chatRoomId,
-        senderId,
+        sender,
         isTyping: true,
       });
     }
   });
 
-  socket.on("stopTyping", ({ chatRoomId, senderId, receiverId }) => {
-    const receiverSocket = onlineUsers.get(receiverId);
+  socket.on("stopTyping", ({ chatRoomId, sender, receiver }) => {
+    const receiverSocket = onlineUsers.get(receiver);
     if (receiverSocket) {
       io.to(receiverSocket).emit("typingStatus", {
         chatRoomId,
-        senderId,
+        sender,
         isTyping: false,
       });
     }
   });
 
   socket.on("disconnect", async () => {
-    const userId = getKeyByValue(onlineUsers, socket.id);
-    onlineUsers.delete(userId);
+    const userId = getUserIdBySocketId(onlineUsers, socket.id);
     if (userId) {
-      await User.findByIdAndUpdate(userId, { lastSeen: new Date() });
+      onlineUsers.delete(userId);
+      await userModel.findByIdAndUpdate(userId, { lastSeen: new Date() });
     }
-    io.emit("getUsers", Array.from(onlineUsers));
+    io.emit("getUsers", Array.from(onlineUsers.keys()));
   });
 
   socket.on("logoutUser", async (userId) => {
     onlineUsers.delete(userId);
-    if (userId) {
-      await User.findByIdAndUpdate(userId, { lastSeen: new Date() });
-    }
-    io.emit("getUsers", Array.from(onlineUsers));
+    await userModel.findByIdAndUpdate(userId, { lastSeen: new Date() });
+    io.emit("getUsers", Array.from(onlineUsers.keys()));
   });
 });
 

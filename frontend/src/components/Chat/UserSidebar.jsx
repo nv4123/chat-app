@@ -33,19 +33,31 @@ const UserSidebar = () => {
     };
   }, [user._id]);
 
-  const handleUserClick = async (userId) => {
-    try {
-      const res = await axiosInstance.post('/chatrooms/create', {
-        senderId: user._id,
-        receiverId: userId,
-      });
+  // const handleUserClick = async (userId) => {
+  //   try {
+  //     const res = await axiosInstance.post('/chatrooms/create', {
+  //       senderId: user._id,
+  //       receiverId: userId,
+  //     });
 
-      const chatRoomId = res.data._id;
-      dispatch(setActiveChat({ userId, chatRoomId }));
-    } catch (error) {
-      console.error('❌ Failed to create/fetch chat room:', error?.response?.data || error.message);
-    }
-  };
+  //     const chatRoomId = res.data._id;
+  //     dispatch(setActiveChat({ userId, chatRoomId }));
+  //   } catch (error) {
+  //     console.error('❌ Failed to create/fetch chat room:', error?.response?.data || error.message);
+  //   }
+  // };
+const handleUserClick = async (userId) => {
+  try {
+    const res = await axiosInstance.post('/chatrooms/create', {
+      receiverId: userId,  
+    });
+
+    const chatRoomId = res.data._id;
+    dispatch(setActiveChat({ userId, chatRoomId }));
+  } catch (error) {
+    console.error('Failed to create/fetch chat room:', error?.response?.data || error.message);
+  }
+};
 
   const sortedUsers = useMemo(() => {
     const filtered = users.filter(u => u._id !== user?._id);

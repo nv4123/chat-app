@@ -1,32 +1,32 @@
 // controllers/chatMessageController.js
 
-import ChatMessage from "../models/ChatMessage.js";
+import ChatMessage from "../models/chatmessageModel.js";
 import mongoose from "mongoose";
 
 // POST /api/messages - Send a message
 export const createMessage = async (req, res) => {
-  const { chatRoomId, sender, text } = req.body;
+  const sender = req.user?.id;
+  const { chatRoomId, receiver, text } = req.body;
 
-  // Log the incoming request body for debugging
+  console.log("Sender from token:", sender);
+  console.log("Receiver from body:", receiver);
   console.log("Request Body:", req.body);
 
-  // 1. Validate input fields
-  if (!chatRoomId || !sender || !text) {
+  if (!chatRoomId || !sender || !receiver || !text) {
     return res
       .status(400)
-      .json({ message: "chatRoomId, sender, and text are required." });
+      .json({ message: "chatRoomId, sender, receiver, and text are required." });
   }
 
-  // 2. Validate chatRoomId as a MongoDB ObjectId
   if (!mongoose.Types.ObjectId.isValid(chatRoomId)) {
     return res.status(400).json({ message: "Invalid chatRoomId format." });
   }
 
   try {
-    // 3. Create new message
     const newMessage = new ChatMessage({
-      chatRoomId,
+      chatRoomId,   // ✅ this matches your schema now
       sender,
+      receiver,
       text,
     });
 
@@ -45,13 +45,11 @@ export const createMessage = async (req, res) => {
 export const getMessages = async (req, res) => {
   const { chatRoomId } = req.params;
 
-  // Validate chatRoomId format
   if (!mongoose.Types.ObjectId.isValid(chatRoomId)) {
     return res.status(400).json({ message: "Invalid chatRoomId format." });
   }
 
   try {
-    // Fetch messages sorted by createdAt (oldest first)
     const messages = await ChatMessage.find({ chatRoomId }).sort({
       createdAt: 1,
     });

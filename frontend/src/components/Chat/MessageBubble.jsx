@@ -9,9 +9,7 @@ const MessageBubble = ({ message, isOwn }) => {
   const getStatusIcon = () => {
     switch (message.status) {
       case 'sent':
-        return (
-          <CheckOutlined className="text-gray-400 text-xs opacity-70" />
-        );
+        return <CheckOutlined className="text-gray-400 text-xs opacity-70" />;
       case 'delivered':
         return (
           <div className="flex">
@@ -19,7 +17,7 @@ const MessageBubble = ({ message, isOwn }) => {
             <CheckOutlined className="text-gray-400 text-xs opacity-70" />
           </div>
         );
-      case 'read':  // Changed from 'seen' to 'read' to match backend
+      case 'read':
         return (
           <div className="flex">
             <CheckOutlined className="text-blue-500 text-xs -mr-1" />
@@ -32,20 +30,21 @@ const MessageBubble = ({ message, isOwn }) => {
   };
 
   const getMessageTime = () => {
-    const messageDate = new Date(message.timestamp);
+    const timestamp = message?.createdAt;
+    if (!timestamp) return '';
+
+    const messageDate = new Date(timestamp);
     const now = new Date();
     const isToday = messageDate.toDateString() === now.toDateString();
+
     const yesterday = new Date(now);
     yesterday.setDate(yesterday.getDate() - 1);
     const isYesterday = messageDate.toDateString() === yesterday.toDateString();
 
-    if (isToday) {
-      return formatTime(message.timestamp);
-    } else if (isYesterday) {
-      return 'Yesterday';
-    } else {
-      return formatTime(message.timestamp);
-    }
+    if (isToday) return formatTime(timestamp);
+    if (isYesterday) return 'Yesterday';
+
+    return formatTime(timestamp);
   };
 
   return (
@@ -53,26 +52,16 @@ const MessageBubble = ({ message, isOwn }) => {
       <div
         className={`max-w-xs lg:max-w-md px-3 py-2 rounded-lg ${
           isOwn
-            ? 'bg-green-500 text-white rounded-br-sm'
-            : 'bg-white text-gray-800 border border-gray-200 rounded-bl-sm'
+            ? 'bg-white text-gray-800 rounded-br-sm' // Sender: white
+            : 'bg-green-500 text-white rounded-bl-sm' // Receiver: green
         }`}
-        style={{
-          boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
-        }}
+        style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.1)' }}
       >
-        <Text
-          className={`block ${
-            isOwn ? 'text-white' : 'text-gray-800'
-          }`}
-        >
-          {message.text} {/* updated from message.message */}
+        <Text className={`block ${isOwn ? 'text-gray-800' : 'text-white'}`}>
+          {message.text}
         </Text>
         <div className={`flex items-center gap-1 mt-1 ${isOwn ? 'justify-end' : 'justify-start'}`}>
-          <Text
-            className={`text-xs ${
-              isOwn ? 'text-white opacity-80' : 'text-gray-500'
-            }`}
-          >
+          <Text className={`text-xs ${isOwn ? 'text-gray-500' : 'text-white opacity-80'}`}>
             {getMessageTime()}
           </Text>
           {isOwn && getStatusIcon()}

@@ -56,26 +56,29 @@ const ChatWindow = () => {
   };
 
   const handleSendMessage = async () => {
-    if (!messageInput.trim() || !activeChat || !user || !activeChatRoomId) return;
+  if (!messageInput.trim() || !activeChat || !user || !activeChatRoomId) return;
 
-    const result = await dispatch(sendMessage({
+  const result = await dispatch(
+    sendMessage({
       chatRoomId: activeChatRoomId,
-      receiverId: activeChat,
+      sender: user._id,
+      receiver: activeChat,
       message: messageInput.trim(),
-    }));
+    })
+  );
 
-    if (sendMessage.fulfilled.match(result)) {
-      socketService.emit('send-message', {
-        ...result.payload,
-        senderName: user.name,
-        chatRoomId: activeChatRoomId,
-      });
-    }
+  if (sendMessage.fulfilled.match(result)) {
+    socketService.emit("sendMessage", {
+      sender: user._id,
+      receiver: activeChat,
+      text: messageInput.trim(),
+      chatRoomId: activeChatRoomId,
+    });
+  }
 
-    setMessageInput('');
-    handleStopTyping();
-  };
-
+  setMessageInput("");
+  handleStopTyping();
+};
   const handleCloseChat = () => {
     dispatch(clearChat());
   };
@@ -108,7 +111,6 @@ const ChatWindow = () => {
 
   const handleEmojiSelect = (emoji) => {
   setMessageInput(prev => prev + emoji.native);
-  // Do NOT close emoji picker here — user can keep adding emojis
 };
 
 

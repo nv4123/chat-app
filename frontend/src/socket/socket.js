@@ -1,4 +1,4 @@
-import { io } from 'socket.io-client';
+import { io } from "socket.io-client";
 
 class SocketService {
   socket = null;
@@ -8,7 +8,7 @@ class SocketService {
       return this.socket;
     }
 
-    this.socket = io('http://localhost:5000', {
+    this.socket = io("http://localhost:5000", {
       auth: { token },
     });
 
@@ -20,10 +20,6 @@ class SocketService {
       this.socket.disconnect();
       this.socket = null;
     }
-  }
-
-  getSocket() {
-    return this.socket;
   }
 
   emit(event, data) {
