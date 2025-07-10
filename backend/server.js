@@ -70,13 +70,9 @@ io.on("connection", (socket) => {
     io.emit("getUsers", Array.from(onlineUsers.keys())); // send array of userIds
   });
 
-  socket.on("sendMessage", async ({ sender, receiver, text, chatRoomId }) => {
-    // Use keys matching backend model exactly
-    console.log({sender,
-      receiver,
-      chatRoomId,
-      text,
-      status: "sent",})
+  socket.on("sendMessage", async (payload) => {
+   try{
+    const { chatRoomId, sender, receiver, text } = payload;
     const newMessage = new ChatMessage({
       sender,
       receiver,
@@ -90,7 +86,10 @@ io.on("connection", (socket) => {
     const receiverSocketId = onlineUsers.get(receiver);
     if (receiverSocketId) {
       socket.to(receiverSocketId).emit("getMessage", {
-        ...newMessage._doc,
+        chatRoomId,
+        sender,
+        text,
+        timestamp: newMessage.createdAt || new Date().toISOString(),
       });
 
       // Update status to delivered if receiver connected
@@ -113,8 +112,13 @@ io.on("connection", (socket) => {
       sender,
       text,
       timestamp: newMessage.createdAt || new Date().toISOString(),
-    });
-  });
+    })
+  }
+   catch (error) {
+    console.error("🔥 Error in sendMessage socket:", error);
+    socket.emit("errorSendingMessage", { error: error.message });
+  }
+});
 
   socket.on("joinRoom", (roomId) => {
     socket.join(roomId);

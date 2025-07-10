@@ -6,12 +6,14 @@ import mongoose from "mongoose";
 // POST /api/messages - Send a message
 export const createMessage = async (req, res) => {
   const sender = req.user?.id;
+  console.log("req.user at top of controller:", req.user);
+
   const { chatRoomId, receiver, text } = req.body;
 
-  console.log("Sender from token:", sender);
-  console.log("Receiver from body:", receiver);
-  console.log("Request Body:", req.body);
-
+  console.log("Final sender before saving:", sender, typeof sender);
+  console.log("Final chatRoomId before saving:", chatRoomId, typeof chatRoomId);
+  console.log("Final receiver before saving:", receiver, typeof receiver);
+  console.log("Mongoose models:", mongoose.models);
   if (!chatRoomId || !sender || !receiver || !text) {
     return res
       .status(400)
@@ -23,13 +25,16 @@ export const createMessage = async (req, res) => {
   }
 
   try {
+     console.log("Final sender before saving:", sender);
+
     const newMessage = new ChatMessage({
+      
       chatRoomId,   // ✅ this matches your schema now
       sender,
       receiver,
       text,
     });
-
+    console.log("neMessage to save:", newMessage);
     await newMessage.save();
     res.status(201).json(newMessage);
   } catch (error) {

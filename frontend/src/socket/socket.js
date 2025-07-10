@@ -11,6 +11,14 @@ class SocketService {
     this.socket = io("http://localhost:5000", {
       auth: { token },
     });
+    this.socket.on("connect", () => {
+    console.log("✅ Socket connected with ID:", this.socket.id);
+  });
+
+  // ❗ Optional: catch errors
+  this.socket.on("connect_error", (err) => {
+    console.error("❌ Socket connection error:", err.message);
+  });
 
     return this.socket;
   }

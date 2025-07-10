@@ -8,13 +8,15 @@ import MessageBubble from './MessageBubble';
 import Picker from '@emoji-mart/react';
 import data from '@emoji-mart/data';
 import { formatTime } from '../../utils/formatTime';
+import { unwrapResult } from '@reduxjs/toolkit';
 
 const { Text, Title } = Typography;
 
 const ChatWindow = () => {
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
-  const { messages, activeChat, activeChatRoomId, typingUsers } = useSelector((state) => state.chat);
+const { activeChat, activeChatRoomId, typingUsers } = useSelector((state) => state.chat);
+const [messages, setMessages] = useState([]);
   const { users } = useSelector((state) => state.users);
 
   const [messageInput, setMessageInput] = useState('');
@@ -24,23 +26,34 @@ const ChatWindow = () => {
   const typingTimeoutRef = useRef(null);
 
   const activeUser = users.find(u => u._id === activeChat);
-  const chatMessages = messages.filter(
-    m => m.chatRoomId === activeChatRoomId ||
-         (m.sender === user?._id && m.receiver === activeChat) ||
-         (m.sender === activeChat && m.receiver === user?._id)
-  );
+  const chatMessages = messages.filter(m => m.chatRoomId === activeChatRoomId);
+
 
   useEffect(() => {
+  const fetchAndSetMessages = async () => {
     if (activeChatRoomId && user) {
-      dispatch(fetchMessages(activeChatRoomId));
+      const result = await dispatch(fetchMessages(activeChatRoomId)).unwrap();
+        setMessages(result); // result is payload
+      if (fetchMessages.fulfilled.match(result)) {
+        setMessages(result.payload); // Save fetched messages locally
+      }
       markMessagesAsSeen();
     }
-  }, [activeChatRoomId, user, dispatch]);
+  };
+
+  fetchAndSetMessages();
+}, [activeChatRoomId, user, dispatch]);
 
   useEffect(() => {
     scrollToBottom();
   }, [chatMessages]);
-
+ useEffect(() => {
+  const token = localStorage.getItem("token");
+  if (token) {
+    const socket = socketService.connect(token);
+    socketService.emit("addUser", user._id); // 🔥 CRUCIAL
+  }
+}, [user]);
   const markMessagesAsSeen = () => {
     if (!activeChat || !user || !activeChatRoomId) return;
 
@@ -65,20 +78,42 @@ const ChatWindow = () => {
       receiver: activeChat,
       message: messageInput.trim(),
     })
-  );
+  ).unwrap(); // 
 
   if (sendMessage.fulfilled.match(result)) {
-    socketService.emit("sendMessage", {
+    const newMessage = {
       sender: user._id,
       receiver: activeChat,
       text: messageInput.trim(),
       chatRoomId: activeChatRoomId,
-    });
+      timestamp: new Date().toISOString(), // Optional, to mimic real-time
+    };
+    socketService.emit("sendMessage", newMessage);
+    setMessages((prev) => [...prev, newMessage]);
+
+
   }
 
   setMessageInput("");
   handleStopTyping();
 };
+useEffect(() => {
+  const handleIncomingMessage = (data) => {
+    console.log("📩 getMessage received", data); // 🧪 Confirm this runs
+
+    if (data.chatRoomId === activeChatRoomId) {
+      setMessages((prev) => [...prev, data]);
+    }
+  };
+
+  socketService.on("getMessage", handleIncomingMessage);
+
+  return () => {
+    socketService.off("getMessage", handleIncomingMessage);
+  };
+}, [activeChatRoomId]);
+
+
   const handleCloseChat = () => {
     dispatch(clearChat());
   };
